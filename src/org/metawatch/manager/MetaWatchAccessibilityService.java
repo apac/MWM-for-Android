@@ -117,13 +117,14 @@ public class MetaWatchAccessibilityService extends AccessibilityService {
 				}
 			}
 			
-			/* Forward google chat or voice event */
-			if (packageName.equals("com.google.android.gsf") || packageName.equals("com.google.android.apps.googlevoice")) {
+			/* Forward google voice event */
+			if (packageName.equals("com.google.android.apps.googlevoice")) {
 				if (sharedPreferences.getBoolean("notifySMS", true)) {
 					if (Preferences.logging) Log.d(MetaWatch.TAG,
 							"onAccessibilityEvent(): Sending SMS event: '"
 									+ tickerText + "'.");
-					NotificationBuilder.createSMS(this,"Google Message", tickerText);
+					String[] voiceSMSSplit = tickerText.split(":",2);
+					NotificationBuilder.createSMS(this,voiceSMSSplit[0], voiceSMSSplit[1].substring(1));
 					return;
 				}
 			}
