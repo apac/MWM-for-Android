@@ -6,11 +6,9 @@ import java.util.ListIterator;
 import java.util.Stack;
 
 import org.metawatch.manager.FontCache;
+import org.metawatch.manager.FontCache.FontSize;
 import org.metawatch.manager.Idle;
 import org.metawatch.manager.MetaWatchService;
-import org.metawatch.manager.FontCache.FontSize;
-import org.metawatch.manager.MetaWatchService.Preferences;
-import org.metawatch.manager.MetaWatchService.QuickButton;
 import org.metawatch.manager.MetaWatchService.WatchType;
 import org.metawatch.manager.Protocol;
 import org.metawatch.manager.Utils;
@@ -54,11 +52,11 @@ public class ActionsApp extends ApplicationBase {
 	
 	public boolean isToggleable() {
 		// Always provide a way to reach the Actions app (since it's quite central).
-		if (MetaWatchService.watchType == MetaWatchService.WatchType.DIGITAL &&
-				Preferences.quickButton == QuickButton.OPEN_ACTIONS) {
-			// Only set toggleable if Quick Button can open it again.
-			return true;
-		}
+		//if (MetaWatchService.watchType == MetaWatchService.WatchType.DIGITAL &&
+		//		Preferences.quickButton == QuickButton.OPEN_ACTIONS) {
+		//	// Only set toggleable if Quick Button can open it again.
+		//	return true;
+		//}
 		
 		return false;
 	}

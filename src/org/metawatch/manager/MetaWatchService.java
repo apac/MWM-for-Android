@@ -93,10 +93,11 @@ public class MetaWatchService extends Service {
 	public static PowerManager.WakeLock wakeLock;
 
 	public static volatile int connectionState;
-	public static int watchType;
+	public static int watchType = WatchType.UNKNOWN;
+	public static int watchGen = WatchGen.UNKNOWN;
 	public static int watchState;
 	public static boolean fakeWatch = false; 	// Setting this to true disables all the bt comms, and just pretends its connected to a watch.  Enable by setting the MAC address to ANALOG or DIGITAL
-
+	
 	public static TestSmsLoop testSmsLoop;
 	private boolean lastConnectionState = false;
 	
@@ -163,12 +164,6 @@ public class MetaWatchService extends Service {
 		public static volatile boolean CALL = false;
 	}
 	
-	public final static class QuickButton {
-		public final static int DISABLED = 0;
-		public final static int NOTIFICATION_REPLAY = 1;
-		public final static int OPEN_ACTIONS = 2;
-	}
-	
 	public final static class AppLaunchMode {
 		public static final int POPUP = 0;
 		public static final int APP_PAGE = 1;
@@ -205,7 +200,8 @@ public class MetaWatchService extends Service {
 		public static int fontSize = 2;
 		public static int smsLoopInterval = 15;
 		public static int idleMusicControlMethod = MediaControl.MUSICSERVICECOMMAND;
-		public static int quickButton = QuickButton.DISABLED;
+		public static String quickButtonL = ":launch:org.metawatch.manager.apps.MediaPlayerApp";
+		public static String quickButtonR = "lastNotification";
 		public static boolean notificationLarger = false;
 		public static boolean autoConnect = false;
 		public static boolean autoRestart = false;
@@ -226,6 +222,7 @@ public class MetaWatchService extends Service {
 		public static boolean showActionsInCall = true;
 		public static String themeName = "";
 		public static boolean hideEmptyWidgets = false;
+		public static boolean inverseMediaPlayerButtons = false;
 		public static boolean clockOnAppScreens = false;
 		public static boolean hiddenWidgetsReserveSpace = false;
 		public static boolean showTestWidgets = false;
@@ -236,8 +233,15 @@ public class MetaWatchService extends Service {
 	}
 
 	public final class WatchType {
+		public static final int UNKNOWN = 0;
 		public static final int ANALOG = 1;
 		public static final int DIGITAL = 2;
+	}
+	
+	public final class WatchGen {
+		public static final int UNKNOWN = 0;
+		public static final int GEN1 = 1;	// Original dev watches
+		public static final int GEN2 = 2;	// Strata / Frame
 	}
 	
 	@Override
@@ -337,9 +341,10 @@ public class MetaWatchService extends Service {
 		Preferences.idleMusicControlMethod = Integer.parseInt(
 				sharedPreferences.getString("IdleMusicControlMethod", 
 				Integer.toString(Preferences.idleMusicControlMethod)));
-		Preferences.quickButton = Integer.parseInt(
-				sharedPreferences.getString("QuickButton", 
-				Integer.toString(Preferences.quickButton)));
+		Preferences.quickButtonL = sharedPreferences.getString("QuickButtonL", 
+				Preferences.quickButtonL);
+		Preferences.quickButtonR = sharedPreferences.getString("QuickButtonR", 
+				Preferences.quickButtonR);
 		Preferences.autoConnect = sharedPreferences.getBoolean(
 				"AutoConnect", Preferences.autoConnect);	
 		Preferences.autoRestart = sharedPreferences.getBoolean("AutoRestart", 
@@ -377,6 +382,8 @@ public class MetaWatchService extends Service {
 				Preferences.themeName);
 		Preferences.hideEmptyWidgets = sharedPreferences.getBoolean("HideEmptyWidgets",
 				Preferences.hideEmptyWidgets);
+		Preferences.inverseMediaPlayerButtons = sharedPreferences.getBoolean("InverseMediaPlayerButtons",
+				Preferences.inverseMediaPlayerButtons);
 		Preferences.clockOnAppScreens = sharedPreferences.getBoolean("ClockOnAppBuffers",
 				Preferences.clockOnAppScreens);
 		Preferences.showTestWidgets = sharedPreferences.getBoolean("TestWidgets", 
@@ -578,7 +585,9 @@ public class MetaWatchService extends Service {
 
 		connectionState = ConnectionState.CONNECTING;
 		watchState = WatchStates.OFF;
-		watchType = WatchType.DIGITAL;
+		watchType = WatchType.UNKNOWN;
+		watchGen = WatchGen.UNKNOWN;
+		Monitors.getRTCTimestamp = 0;
 
 		if (bluetoothAdapter == null)
 			bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -706,13 +715,9 @@ public class MetaWatchService extends Service {
 			//if( Preferences.autoClockFormat )
 			//	Protocol.setTimeDateFormat(this);
 			
-			Protocol.getRealTimeClock();
 			Protocol.getDeviceType();
-			Protocol.configureIdleBufferSize(true, true);
-
-			Notification.startNotificationSender(this);
 			
-			Idle.updateIdle(this, true);
+			Notification.startNotificationSender(this);
 			
 		} catch (IOException ioexception) {
 			if (Preferences.logging) Log.d(MetaWatch.TAG, ioexception.toString());
@@ -1023,6 +1028,12 @@ public class MetaWatchService extends Service {
 				} else if (bytes[4] == 0x10) {
 					if (Preferences.logging) Log.d(MetaWatch.TAG,
 							"MetaWatchService.readFromDevice(): scroll complete.");
+				} else if (bytes[4] == 0x02) {
+					if (Preferences.logging) Log.d(MetaWatch.TAG,
+							"MetaWatchService.readFromDevice(): mode timeout.");
+					// The watch switches back to idle mode (showing the initial page) after 10 minutes
+					// Activate the last used idle page in this case
+					Idle.toIdle(context);
 				}
 			}
 
@@ -1037,8 +1048,9 @@ public class MetaWatchService extends Service {
 																			// type
 				if (bytes[4] == 1 || bytes[4] == 4) {
 					watchType = WatchType.ANALOG;
+					watchGen = WatchGen.GEN1;
 					if (Preferences.logging) Log.d(MetaWatch.TAG,
-							"MetaWatchService.readFromDevice(): device type response; analog watch");
+							"MetaWatchService.readFromDevice(): device type response; analog watch (gen1)");
 
 					if (watchState == WatchStates.OFF || watchState == WatchStates.IDLE) {
 						Idle.toIdle(this);
@@ -1055,12 +1067,28 @@ public class MetaWatchService extends Service {
 					
 				} else {
 					watchType = WatchType.DIGITAL;
-					if (Preferences.logging) Log.d(MetaWatch.TAG,
-							"MetaWatchService.readFromDevice(): device type response; digital watch");
-
+					
+					if (bytes[4] == 5 || bytes[4] == 6) {
+						watchGen = WatchGen.GEN2; 
+						if (Preferences.logging) Log.d(MetaWatch.TAG,
+								"MetaWatchService.readFromDevice(): device type response; Strata/Frame (gen2)");
+					}
+					else {
+						watchGen = WatchGen.GEN1;
+						if (Preferences.logging) Log.d(MetaWatch.TAG,
+								"MetaWatchService.readFromDevice(): device type response; digital watch (gen1)");
+					}
+					
 					Protocol.configureMode();
 					Protocol.setNvalLcdInvert(Preferences.invertLCD);
 
+					Protocol.configureIdleBufferSize(true, true);
+				
+					// Disable built in action for Right top immediate
+					Protocol.disableButton(0, 0, MetaWatchService.WatchBuffers.IDLE); 
+					Protocol.disableButton(0, 0, MetaWatchService.WatchBuffers.APPLICATION); 
+					Protocol.disableButton(0, 0, MetaWatchService.WatchBuffers.NOTIFICATION); 					
+				
 					if (watchState == WatchStates.OFF || watchState == WatchStates.IDLE) {
 						Idle.toIdle(this);
 						Idle.updateIdle(this, true);
@@ -1073,8 +1101,9 @@ public class MetaWatchService extends Service {
 						Notification.addBitmapNotification(this, Utils.getBitmap(this, "splash.png"), new VibratePattern(false, 0, 0, 0), 10000, "Splash");
 					}
 					
-					Protocol.queryNvalTime();
 				}
+			
+				Protocol.getRealTimeClock();
 				
 				SharedPreferences sharedPreferences = PreferenceManager
 						.getDefaultSharedPreferences(context);
@@ -1132,7 +1161,7 @@ public class MetaWatchService extends Service {
 				
 				Monitors.rtcOffset = (int)(roundTrip/2000);
 				
-				Protocol.sendRtcNow(context);
+				Protocol.setRealTimeClock(context);
 				
 			} else {
 				if (Preferences.logging) Log.d(MetaWatch.TAG,
@@ -1208,8 +1237,12 @@ public class MetaWatchService extends Service {
 					
 					switch (button) {
 					
-					case Idle.QUICK_BUTTON:
-						Idle.quickButtonAction(this);
+					case Idle.LEFT_QUICK_BUTTON:
+						Idle.quickButtonAction(context, Preferences.quickButtonL);
+						break;
+					
+					case Idle.RIGHT_QUICK_BUTTON:
+						Idle.quickButtonAction(context, Preferences.quickButtonR);
 						break;
 						
 					case Idle.IDLE_NEXT_PAGE:							

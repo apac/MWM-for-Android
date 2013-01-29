@@ -93,9 +93,12 @@
     <string name="settings_analog_pause_scroll">Pause Before Scrolling</string>
     <string name="settings_analog_pause_scroll_desc">Pause a few seconds before scrolling long messages on the analog watch</string>
         
-    <string name="settings_quick_button_action">Quick Button Action</string>
-    <string name="settings_quick_button_action_desc">Action for Right Middle Button on non-app idle pages</string>    
-        
+    <string name="settings_left_quick_button_action">Left Quick Button Action</string>
+    <string name="settings_left_quick_button_action_desc">Action for Left Middle Button on widget screens</string>    
+
+    <string name="settings_right_quick_button_action">Right Quick Button Action</string>
+    <string name="settings_right_quick_button_action_desc">Action for Right Middle Button on widget screens</string>   
+    
     <string name="settings_sticky_notifications">Sticky Notifications</string>  
     <string name="settings_sticky_notifications_desc">Use sticky notifications (that stay on screen until manually dismissed)</string>   
         
@@ -213,15 +216,11 @@
 	</string-array>
     
     <string-array name="settings_quick_button_name"> 
-   	<item>Disabled (Toggle Seconds)</item>
-   	<item>Replay Latest Notification</item>
-   	<item>Open/Go to the Actions App</item>   
+   	<item> </item>
 	</string-array> 
 
 	<string-array name="settings_quick_button_value"> 
 	<item>0</item>
-   	<item>1</item>
-   	<item>2</item>
 	</string-array>
     
     <string name="settings_Digital">Digital Watch</string>
@@ -352,6 +351,9 @@
 	<item>All</item>  
 	</string-array>
     
+	<string name="settings_about">About</string>
+	<string name="settings_exit">Disconnect and Exit</string>
+	
     <string name="main_service_toggle_on">Service running.  Click to stop.</string>
     <string name="main_service_toggle_off">Service stopped.  Click to start.</string>
 
@@ -402,6 +404,8 @@
 	
 	<string name="status_message_queue">Message Queue Length:</string>
 	<string name="status_notification_queue">Notification Queue Length:</string>
+	<string name="settings_Inverse_Media_Player_Buttons">Inverse Media Player Buttons</string>
+	<string name="settings_Inverse_Media_Player_Buttons_desc">Changes the order of the volume up/next song and volume down/previous song buttons</string>
 	
 	<string name="widget_picker_title">Select a widget</string>
 	
