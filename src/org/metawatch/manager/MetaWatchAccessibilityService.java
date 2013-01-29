@@ -120,11 +120,46 @@ public class MetaWatchAccessibilityService extends AccessibilityService {
 			/* Forward google voice event */
 			if (packageName.equals("com.google.android.apps.googlevoice")) {
 				if (sharedPreferences.getBoolean("notifySMS", true)) {
+					
+					String[] appBlacklist = sharedPreferences.getString("appBlacklist",
+							OtherAppsList.DEFAULT_BLACKLIST).split(",");
+					Arrays.sort(appBlacklist);
+		
+					/* Ignore if on blacklist */
+					if (Arrays.binarySearch(appBlacklist, packageName) >= 0) {
+						if (Preferences.logging) Log.d(MetaWatch.TAG,
+								"onAccessibilityEvent(): App is blacklisted, ignoring.");
+						return;
+					}
+					
 					if (Preferences.logging) Log.d(MetaWatch.TAG,
 							"onAccessibilityEvent(): Sending SMS event: '"
 									+ tickerText + "'.");
-					String[] voiceSMSSplit = tickerText.split(":",2);
-					NotificationBuilder.createSMS(this,voiceSMSSplit[0], voiceSMSSplit[1].substring(1));
+					String[] gvSMSText = tickerText.split(":",2);
+					NotificationBuilder.createSMS(this,gvSMSText[0], gvSMSText[1].substring(1));
+					return;
+				}
+			}
+			
+			/* Forward google talk event */ 
+			if (packageName.equals("com.google.android.gsf")) {
+				if (sharedPreferences.getBoolean("notifySMS", true)) {
+					
+					String[] appBlacklist = sharedPreferences.getString("appBlacklist",
+							OtherAppsList.DEFAULT_BLACKLIST).split(",");
+					Arrays.sort(appBlacklist);
+		
+					/* Ignore if on blacklist */
+					if (Arrays.binarySearch(appBlacklist, packageName) >= 0) {
+						if (Preferences.logging) Log.d(MetaWatch.TAG,
+								"onAccessibilityEvent(): App is blacklisted, ignoring.");
+						return;
+					}
+					
+					if (Preferences.logging) Log.d(MetaWatch.TAG,
+							"onAccessibilityEvent(): Sending SMS event: '"
+									+ tickerText + "'.");
+					NotificationBuilder.createSMS(this,"Google Talk", tickerText);
 					return;
 				}
 			}
